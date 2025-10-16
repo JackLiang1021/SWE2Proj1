@@ -9,6 +9,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/programs/{code}/versions/{year}/groups")
+@CrossOrigin(origins = "*")
 public class RequirementGroupController {
     private final RequirementGroupService svc;
 
