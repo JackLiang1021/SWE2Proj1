@@ -1,22 +1,38 @@
 package com.example.demo;
 
-import com.example.demo.data.Degree;
-import com.example.demo.data.Student;
-import com.example.demo.data.helper.HelperMethods;
-import org.junit.jupiter.api.Assertions;
+import com.example.demo.entities.Course;
+import com.example.demo.repository.CourseRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.util.Map;
+import java.util.List;
 
+// Example SpringBootTest that writes to the file DB
 @SpringBootTest
 class ClassApplicationTests {
-    HelperMethods helperMethods = new HelperMethods();
-    Map<String, Degree> degreeMap = helperMethods.LoadDegreeCatalogAsMap();
-	@Test
-	void contextLoads() {
-        Student test = new Student("123456789", "Jack", degreeMap.get("CS"));
-        Assertions.assertEquals(degreeMap.get("CS"), test.degree());
-	}
 
+    @Autowired CourseRepository courseRepo;
+
+    @org.junit.jupiter.api.BeforeAll
+    static void ensureFolder() throws Exception {
+        java.nio.file.Files.createDirectories(java.nio.file.Path.of("data"));
+    }
+
+    @org.junit.jupiter.api.Test
+    void writesToFileDb() throws Exception {
+        courseRepo.deleteAll();
+        courseRepo.save(new Course("C200", "Intro to Programming", 3));
+
+        var found = courseRepo.findByCode("C200");
+        assert found != null;
+
+        // Sanity: DB file exists
+        var path = java.nio.file.Path.of("data/app.db");
+        System.out.println("DB at: " + path.toAbsolutePath());
+
+        System.out.println(found.getName());
+        assert java.nio.file.Files.exists(path);
+    }
 }
+

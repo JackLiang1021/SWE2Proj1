@@ -1,9 +1,9 @@
-package com.example.demo.data.helper;
+package com.example.demo.dataNOTUSED.helper;
 
-import com.example.demo.data.Course;
-import com.example.demo.data.CourseCatalog;
-import com.example.demo.data.Degree;
-import com.example.demo.data.DegreeCatalog;
+import com.example.demo.dataNOTUSED.Course;
+import com.example.demo.dataNOTUSED.CourseCatalog;
+import com.example.demo.dataNOTUSED.Degree;
+import com.example.demo.dataNOTUSED.DegreeCatalog;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;

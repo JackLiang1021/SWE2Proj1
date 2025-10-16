@@ -1,4 +1,4 @@
-package com.example.demo.data;
+package com.example.demo.dataNOTUSED;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
