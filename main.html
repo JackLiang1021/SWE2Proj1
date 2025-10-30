@@ -213,7 +213,7 @@
         ></progress>
         <span id="label">0 / 0</span>
       </div>
-      <div id="tab_container"><a href="/html/graph.html">Graph</a></div>
+      <div id="tab_container"><a href="/graph.html">Graph</a></div>
       <button
         id="logoutBtn"
         style="
@@ -234,15 +234,15 @@
 
     <div id="planner"></div>
     <script type="module">
-      import { DegreeApi } from "../js/api.js";
-      import { invertDependencyMap } from "../js/models.js";
-      import { BASE_URL } from "../js/config.js";
+      import { DegreeApi } from "/api.js";
+      import { invertDependencyMap } from "/models.js";
+      import { BASE_URL } from "/config.js";
 
       const logoutBtn = document.getElementById("logoutBtn");
       if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
           localStorage.removeItem("student");
-          window.location.href = "/html/login.html";
+          window.location.href = "/login.html";
         });
       }
 
@@ -264,7 +264,7 @@
       const byId = (id) => document.getElementById(id);
       const session = getSession();
       if (!session) {
-        location.href = "/html/login.html";
+        location.href = "/login.html";
         throw new Error("No session");
       }
 
