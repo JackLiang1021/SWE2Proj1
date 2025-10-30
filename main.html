@@ -213,7 +213,7 @@
         ></progress>
         <span id="label">0 / 0</span>
       </div>
-      <div id="tab_container"><a href="graph.html">Graph</a></div>
+      <div id="tab_container"><a href="./graph.html">Graph</a></div>
       <button
         id="logoutBtn"
         style="
@@ -264,7 +264,7 @@
       const byId = (id) => document.getElementById(id);
       const session = getSession();
       if (!session) {
-        location.href = "index.html";
+        location.href = "./index.html";
         throw new Error("No session");
       }
 
