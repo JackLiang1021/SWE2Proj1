@@ -28,5 +28,5 @@ ENV SPRING_DATASOURCE_URL=jdbc:sqlite:/app/data/app.db
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV JAVA_OPTS=""
 
-EXPOSE 8080
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.address=0.0.0.0 --server.port=${PORT:-8080}"]
+
