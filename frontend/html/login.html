@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Login — Degree Planner</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f7f7fb;
+        --card-bg: #fff;
+        --text: #111827;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --input: #d1d5db;
+        --brand: #2563eb;
+        --brand-600: #1d4ed8;
+        --brand-200: #bfdbfe;
+        --ok-bg: #d1fae5;
+        --ok-b: #a7f3d0;
+        --ok-t: #065f46;
+        --err-bg: #fee2e2;
+        --err-b: #fecaca;
+        --err-t: #b91c1c;
+        --radius: 14px;
+        --shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      }
+
+      .wrap {
+        min-height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 24px 22px;
+      }
+
+      h1 {
+        font-size: 22px;
+        margin: 0 0 10px;
+        line-height: 1.2;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 18px;
+      }
+
+      label {
+        display: block;
+        font-weight: 600;
+        font-size: 13px;
+        margin: 12px 0 6px;
+      }
+
+      input[type="text"],
+      input[type="email"],
+      input[type="password"],
+      input[type="url"] {
+        width: 100%;
+        padding: 12px 12px;
+        border: 1px solid var(--input);
+        border-radius: 10px;
+        outline: none;
+        font-size: 14px;
+        background: var(--card-bg);
+        color: var(--text);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease,
+          background 0.15s ease;
+      }
+
+      input::placeholder {
+        color: color-mix(in oklab, var(--muted) 70%, transparent);
+      }
+
+      input:focus {
+        border-color: var(--brand);
+        box-shadow: 0 0 0 3px
+          color-mix(in oklab, var(--brand-200) 70%, transparent);
+      }
+
+      input:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .row > div {
+        flex: 1;
+      }
+
+      .inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+        user-select: none;
+      }
+
+      .btn {
+        width: 100%;
+        margin-top: 16px;
+        padding: 11px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--brand-600);
+        background: var(--brand);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.06s ease, filter 0.15s ease,
+          background 0.15s ease;
+      }
+
+      .btn:hover {
+        filter: brightness(1.05);
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .err,
+      .ok {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        display: none;
+        font-size: 13px;
+        line-height: 1.25;
+      }
+
+      .err {
+        color: var(--err-t);
+        background: var(--err-bg);
+        border: 1px solid var(--err-b);
+      }
+      .ok {
+        color: var(--ok-t);
+        background: var(--ok-bg);
+        border: 1px solid var(--ok-b);
+      }
+
+      .footer {
+        margin-top: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .footer a {
+        color: var(--brand);
+        text-decoration: none;
+        padding: 4px 8px;
+        border-radius: 8px;
+        transition: background 0.15s ease, color 0.15s ease;
+      }
+      .footer a:hover {
+        background: color-mix(in oklab, var(--brand-200) 25%, transparent);
+      }
+
+   
+      @media (max-width: 420px) {
+        .card {
+          padding: 20px 16px;
+          border-radius: 12px;
+        }
+        .row {
+          flex-direction: column;
+        }
+      }
+
+  
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <form class="card" id="loginForm">
+        <h1>Sign in</h1>
+        <div class="sub">Use your student email and password.</div>
+        <label for="email">Email</label>
+        <input
+          id="email"
+          type="email"
+          autocomplete="username"
+          placeholder="you@example.edu"
+          required
+        />
+
+        <label for="password">Password</label>
+        <div class="row">
+          <div>
+            <input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              required
+            />
+          </div>
+          <div
+            style="flex: 0 0 auto; display: flex; align-items: center; gap: 6px"
+          >
+            <input id="showPw" type="checkbox" />
+            <label for="showPw" class="muted" style="margin: 0">Show</label>
+          </div>
+        </div>
+
+        <button id="submitBtn" class="btn" type="submit">Sign in</button>
+
+        <div id="ok" class="ok">Signed in. Redirecting…</div>
+        <div id="err" class="err"></div>
+
+        <div class="footer">
+          <span class="muted">Unencrypted demo login</span>
+          <a class="muted" href="/html/main.html">Go to Graph</a>
+        </div>
+      </form>
+    </div>
+
+    <script type="module">
+      import { BASE_URL } from "../js/config.js";
+
+      console.log(BASE_URL);
+      const byId = (id) => document.getElementById(id);
+      const form = byId("loginForm");
+      const err = byId("err");
+      const ok = byId("ok");
+      const btn = byId("submitBtn");
+
+      byId("showPw").addEventListener("change", (e) => {
+        byId("password").type = e.target.checked ? "text" : "password";
+      });
+
+      (function maybeRedirect() {
+        try {
+          const existing = JSON.parse(
+            localStorage.getItem("student") || "null"
+          );
+          if (existing && existing.studentId) {
+          }
+        } catch {}
+      })();
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        err.style.display = "none";
+        ok.style.display = "none";
+
+        const email = byId("email").value.trim();
+        const password = byId("password").value;
+
+        if (!BASE_URL || !email || !password) {
+          err.textContent = "Please fill in all fields.";
+          err.style.display = "block";
+          return;
+        }
+
+        btn.disabled = true;
+
+        try {
+          const res = await fetch(`${BASE_URL}/auth/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "omit",
+            body: JSON.stringify({ email, password }),
+          });
+
+          if (!res.ok) {
+            const t = await res.text().catch(() => "");
+            throw new Error(t || `Login failed (${res.status})`);
+          }
+
+          const data = await res.json();
+
+          localStorage.setItem(
+            "student",
+            JSON.stringify({
+              studentId: data.studentId,
+              externalId: data.externalId,
+              firstName: data.firstName,
+              lastName: data.lastName,
+              email: data.email,
+              baseUrl: BASE_URL,
+            })
+          );
+
+          ok.style.display = "block";
+
+          window.location.href = "/html/main.html";
+        } catch (ex) {
+          err.textContent = ex.message || "Login failed.";
+          err.style.display = "block";
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

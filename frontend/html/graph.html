@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Program Graph — vis-network</title>
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      #net {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+      #hud {
+        position: absolute;
+        z-index: 5;
+        top: 12px;
+        left: 12px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 10px 12px;
+        border-radius: 8px;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      #hud input {
+        width: 160px;
+      }
+      #status {
+        font-size: 12px;
+        color: #444;
+        margin-top: 6px;
+      }
+      #legend {
+        font-size: 12px;
+        margin-top: 6px;
+        color: #333;
+      }
+      .swatch {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        border-radius: 2px;
+        vertical-align: middle;
+      }
+      #tab_container a {
+        margin-top: 8px;
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 6px;
+        color: #333;
+        text-decoration: none;
+        font-weight: 500;
+        background-color: #f5f5f7;
+        transition: all 0.2s ease-in-out;
+      }
+
+      #tab_container a:hover {
+        background-color: #e3e3e8;
+        color: #000;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      #tab_container a:active {
+        background-color: #d1d1d6;
+        transform: translateY(1px);
+      }
+    </style>
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  </head>
+  <body>
+    <div id="hud">
+      <div>
+      </div>
+      <div style="margin-top: 6px">
+        <label>Program:</label>
+        <input id="programCode" value="CS" />
+        <label style="margin-left: 8px">Year:</label>
+        <input id="catalogYear" value="2024" />
+        <label style="margin-left: 8px">StudentId:</label>
+        <input id="studentId" value="1" />
+        <button id="reload" style="margin-left: 8px">Load</button>
+      </div>
+      <div id="legend">
+        <span
+          class="swatch"
+          style="background: #e9f5ff; border: 1px solid #8ac6ff"
+        ></span>
+        Course (unlocked) &nbsp;&nbsp;<span
+          class="swatch"
+          style="background: #fff7e6; border: 1px solid #ffd28a"
+        ></span>
+        Course used as prerequisite &nbsp;&nbsp;<span
+          class="swatch"
+          style="background: #d7f7de; border: 1px solid #66c487"
+        ></span>
+        Completed &nbsp;&nbsp;<span
+          class="swatch"
+          style="background: #eee; border: 1px solid #bbb"
+        ></span>
+        Locked (has unmet prereqs) &nbsp;&nbsp;<span
+          class="swatch"
+          style="background: #f6f7fb; border: 1px solid #cfd6ff"
+        ></span>
+        Requirement Group
+      </div>
+      <div id="status">Ready.</div>
+      <div style="display: flex; flex-direction: row;">
+        <div id="tab_container">
+          <a href="/html/main.html">Planner</a>
+        </div>
+        <button
+          id="logoutBtn"
+          style="
+            margin-left: 8px;
+            background: #ef4444;
+            color: #fff;
+            border: 1px solid #dc2626;
+            border-radius: 8px;
+            padding: 6px 14px;
+            cursor: pointer;
+            margin-top: 8px;
+          "
+        >
+          Log out
+        </button>
+      </div>
+    </div>
+    <div id="net"></div>
+    <script type="module">
+      import { BASE_URL } from "../js/config.js";
+
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+          localStorage.removeItem("student");
+          window.location.href = "/html/login.html";
+        });
+      }
+      function getSession() {
+        try {
+          const s = JSON.parse(localStorage.getItem("student") || "null");
+          if (!s || !s.studentId || !s.baseUrl) return null;
+          return s;
+        } catch {
+          return null;
+        }
+      }
+      async function jget(url) {
+        const r = await fetch(url, { credentials: "omit" });
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText} for ${url}`);
+        return r.json();
+      }
+      async function addCompletedToBackend(base, studentId, codes) {
+        const r = await fetch(
+          `${base}/students/${encodeURIComponent(studentId)}/completed`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "omit",
+            body: JSON.stringify(codes),
+          }
+        );
+        if (!r.ok)
+          throw new Error(`${r.status} ${r.statusText} adding completions`);
+        return r.json();
+      }
+      async function removeCompletedFromBackend(base, studentId, code) {
+        const r = await fetch(
+          `${base}/students/${encodeURIComponent(
+            studentId
+          )}/completed/${encodeURIComponent(code)}`,
+          {
+            method: "DELETE",
+            credentials: "omit",
+          }
+        );
+        if (!r.ok && r.status !== 204)
+          throw new Error(`${r.status} ${r.statusText} removing ${code}`);
+      }
+
+      const qs = new URLSearchParams(location.search);
+      const byId = (id) => document.getElementById(id);
+
+      const session = getSession();
+      if (!session) {
+        location.href = "/html/login.html";
+        throw new Error("No session");
+      }
+
+      byId("baseUrl").value = BASE_URL;
+
+      (function lockInputs() {
+        const lock = (id) => {
+          const el = byId(id);
+          if (el) {
+            el.disabled = true;
+            el.style.opacity = 0.6;
+          }
+        };
+        lock("programCode");
+        lock("catalogYear");
+        lock("studentId");
+        if (byId("studentId"))
+          byId("studentId").value = String(session.studentId);
+      })();
+
+      const nodes = new vis.DataSet([]);
+      const edges = new vis.DataSet([]);
+      const network = new vis.Network(
+        document.getElementById("net"),
+        { nodes, edges },
+        {
+          physics: { stabilization: true, solver: "forceAtlas2Based" },
+          interaction: { hover: true, selectable: false },
+          edges: { arrows: "to", smooth: { type: "dynamic" } },
+          nodes: {
+            shape: "dot",
+            size: 16,
+            font: { face: "Inter, system-ui, sans-serif" },
+          },
+        }
+      );
+
+      function setStatus(msg) {
+        byId("status").textContent = msg;
+      }
+
+      const COLOR = {
+        program: {
+          background: "#2d7ff9",
+          border: "#1b5fd6",
+          hbg: "#2d7ff9",
+          hbr: "#123f9c",
+          font: "#fff",
+        },
+        course: {
+          background: "#e9f5ff",
+          border: "#8ac6ff",
+          hbg: "#d6eeff",
+          hbr: "#5eb4ff",
+        },
+        prereq: {
+          background: "#fff7e6",
+          border: "#ffd28a",
+          hbg: "#ffefd1",
+          hbr: "#ffbe5e",
+        },
+        locked: { background: "#eeeeee", border: "#bbbbbb" },
+        done: {
+          background: "#d7f7de",
+          border: "#66c487",
+          hbg: "#c9f1d2",
+          hbr: "#4ab173",
+        },
+        group: { background: "#f6f7fb", border: "#cfd6ff" },
+      };
+
+      const completed = new Set();
+      const unlocked = new Set();
+      const courseInGraph = new Set();
+      const prereqsOf = new Map();
+      const dependentsOf = new Map();
+      const groupMeta = {};
+      let programNodeId = null;
+      let programName = null;
+
+      function upsertNode(id, data) {
+        nodes.get(id)
+          ? nodes.update({ id, ...data })
+          : nodes.add({ id, ...data });
+      }
+      function upsertEdge(d) {
+        const id = d.id || `${d.from}->${d.to}`;
+        if (!edges.get(id)) edges.add({ id, ...d });
+      }
+      function courseNodeId(code) {
+        return `course:${code}`;
+      }
+      function groupNodeId(id) {
+        return `group:${id}`;
+      }
+
+      function styleProgramNodeDefault() {
+        const label = programName ? `${programName}` : `Program`;
+        upsertNode(programNodeId, {
+          label,
+          title: `All courses lead here`,
+          color: {
+            background: COLOR.program.background,
+            border: COLOR.program.border,
+            highlight: {
+              background: COLOR.program.hbg,
+              border: COLOR.program.hbr,
+            },
+          },
+          font: {
+            color: COLOR.program.font,
+            bold: { color: COLOR.program.font },
+          },
+          size: 24,
+        });
+      }
+      function styleProgramNodeCompleted() {
+        const label = programName
+          ? `${programName} (Completed)`
+          : `Program Completed`;
+        upsertNode(programNodeId, {
+          label,
+          title: `All requirements completed`,
+          color: {
+            background: COLOR.done.background,
+            border: COLOR.done.border,
+            highlight: { background: COLOR.done.hbg, border: COLOR.done.hbr },
+          },
+          font: { color: "#114b20", bold: { color: "#114b20" } },
+          size: 26,
+        });
+      }
+      function setNodeLocked(code) {
+        const id = courseNodeId(code);
+        if (!nodes.get(id)) return;
+        nodes.update({
+          id,
+          color: {
+            background: COLOR.locked.background,
+            border: COLOR.locked.border,
+          },
+        });
+      }
+      function setNodeUnlocked(code, wasPrereq) {
+        const id = courseNodeId(code);
+        if (!nodes.get(id)) return;
+        const base = wasPrereq ? COLOR.prereq : COLOR.course;
+        nodes.update({
+          id,
+          color: {
+            background: base.background,
+            border: base.border,
+            highlight: { background: base.hbg, border: base.hbr },
+          },
+        });
+      }
+      function setNodeCompleted(code) {
+        const id = courseNodeId(code);
+        if (!nodes.get(id)) return;
+        nodes.update({
+          id,
+          color: {
+            background: COLOR.done.background,
+            border: COLOR.done.border,
+            highlight: { background: COLOR.done.hbg, border: COLOR.done.hbr },
+          },
+        });
+      }
+      function setGroupDefault(gid) {
+        if (!nodes.get(gid)) return;
+        nodes.update({
+          id: gid,
+          color: {
+            background: COLOR.group.background,
+            border: COLOR.group.border,
+          },
+        });
+      }
+      function setGroupCompleted(gid) {
+        if (!nodes.get(gid)) return;
+        nodes.update({
+          id: gid,
+          color: {
+            background: COLOR.done.background,
+            border: COLOR.done.border,
+          },
+        });
+      }
+      function updateProgramCompletionState() {
+        const allGroups = Object.keys(groupMeta);
+        const allComplete =
+          allGroups.length > 0 &&
+          allGroups.every(
+            (gid) =>
+              groupMeta[gid].creditsCompleted >= groupMeta[gid].creditsNeeded
+          );
+        allComplete ? styleProgramNodeCompleted() : styleProgramNodeDefault();
+      }
+      function recomputeUnlocksAndGroups() {
+        unlocked.clear();
+        for (const code of courseInGraph) {
+          const pres = prereqsOf.get(code) || new Set();
+          const met = [...pres].every((p) => completed.has(p));
+          const isPrereqNode = (dependentsOf.get(code) || new Set()).size > 0;
+          if (met) {
+            unlocked.add(code);
+            setNodeUnlocked(code, isPrereqNode);
+          } else setNodeLocked(code);
+          if (completed.has(code)) setNodeCompleted(code);
+        }
+        for (const gid of Object.keys(groupMeta)) {
+          const gm = groupMeta[gid];
+          let credits = 0;
+          gm.courseCodes.forEach((code) => {
+            if (completed.has(code)) {
+              const node = nodes.get(courseNodeId(code));
+              let cr = 0;
+              if (node?.title?.includes("Credits: ")) {
+                const tail = node.title.split("Credits: ")[1];
+                const n = parseInt((tail || "").replace(/[^0-9].*$/, ""), 10);
+                if (!isNaN(n)) cr = n;
+              }
+              if (!cr) cr = 3;
+              credits += cr;
+            }
+          });
+          gm.creditsCompleted = credits;
+          nodes.update({
+            id: gid,
+            label: `${gm.name}\n${Math.min(
+              gm.creditsCompleted,
+              gm.creditsNeeded
+            )}/${gm.creditsNeeded} cr`,
+          });
+          gm.creditsCompleted >= gm.creditsNeeded
+            ? setGroupCompleted(gid)
+            : setGroupDefault(gid);
+        }
+        updateProgramCompletionState();
+      }
+
+      async function buildGraph(base, studentId) {
+        const prog = await jget(
+          `${base}/students/${encodeURIComponent(studentId)}/progress`
+        );
+        const programCode = prog.program;
+        const year = prog.catalogYear;
+
+        if (byId("programCode")) byId("programCode").value = programCode;
+        if (byId("catalogYear")) byId("catalogYear").value = year;
+
+        nodes.clear();
+        edges.clear();
+        completed.clear();
+        unlocked.clear();
+        courseInGraph.clear();
+        prereqsOf.clear();
+        dependentsOf.clear();
+        for (const k of Object.keys(groupMeta)) delete groupMeta[k];
+
+        setStatus("Loading program & groups…");
+
+        programNodeId = `program:${programCode}`;
+        programName = null;
+        try {
+          const p = await jget(
+            `${base}/programs/${encodeURIComponent(programCode)}`
+          );
+          programName = p?.name || null;
+        } catch {}
+        styleProgramNodeDefault();
+
+        const groups = await jget(
+          `${base}/programs/${encodeURIComponent(
+            programCode
+          )}/versions/${encodeURIComponent(year)}/groups`
+        );
+
+        const maybePrereq = new Set();
+        for (const g of groups) {
+          const gid = groupNodeId(g.id);
+          const minReq = Number.isFinite(g.minRequired) ? g.minRequired : 0;
+          upsertNode(gid, {
+            label: `${g.name}\n0/${minReq} cr`,
+            shape: "box",
+            color: {
+              background: COLOR.group.background,
+              border: COLOR.group.border,
+            },
+            font: { size: 12 },
+          });
+          upsertEdge({ from: gid, to: programNodeId });
+
+          groupMeta[gid] = {
+            name: g.name,
+            creditsNeeded: minReq,
+            creditsCompleted: 0,
+            courseCodes: new Set(),
+          };
+
+          const options = Array.isArray(g.courseOptions) ? g.courseOptions : [];
+          for (const c of options) {
+            if (!c?.code) continue;
+            const code = c.code;
+            groupMeta[gid].courseCodes.add(code);
+            courseInGraph.add(code);
+
+            const id = courseNodeId(code);
+            if (!nodes.get(id)) {
+              upsertNode(id, {
+                label: code,
+                title: `${c.name || code}\nCredits: ${c.credits ?? "—"}`,
+                color: {
+                  background: COLOR.course.background,
+                  border: COLOR.course.border,
+                  highlight: {
+                    background: COLOR.course.hbg,
+                    border: COLOR.course.hbr,
+                  },
+                },
+              });
+            }
+            upsertEdge({ from: id, to: gid });
+          }
+        }
+
+        let preCompleted = [];
+        try {
+          const stu = await jget(
+            `${base}/students/${encodeURIComponent(studentId)}`
+          );
+          const arr = Array.isArray(stu.completedCourses)
+            ? stu.completedCourses
+            : [];
+          preCompleted = arr.map((c) => c?.code).filter(Boolean);
+        } catch (e) {
+          console.warn("Student fetch failed:", e);
+        }
+
+        setStatus(
+          `Loaded ${courseInGraph.size} course(s). Fetching prerequisites…`
+        );
+
+        const prereqPromises = [];
+        for (const code of courseInGraph) {
+          prereqPromises.push(
+            jget(`${base}/courses/${encodeURIComponent(code)}/prerequisites`)
+              .then((prereqs) => {
+                const present = new Set();
+                for (const p of prereqs || []) {
+                  if (!p?.code) continue;
+                  const pCode = p.code;
+                  if (courseInGraph.has(pCode)) {
+                    present.add(pCode);
+                    maybePrereq.add(pCode);
+                    const pid = courseNodeId(pCode);
+                    if (!nodes.get(pid)) {
+                      upsertNode(pid, {
+                        label: pCode,
+                        title: `${p.name || pCode}\nCredits: ${
+                          p.credits ?? "—"
+                        }`,
+                        color: {
+                          background: COLOR.prereq.background,
+                          border: COLOR.prereq.border,
+                          highlight: {
+                            background: COLOR.prereq.hbg,
+                            border: COLOR.prereq.hbr,
+                          },
+                        },
+                      });
+                    }
+                    upsertEdge({ from: pid, to: courseNodeId(code) });
+                    if (!dependentsOf.has(pCode))
+                      dependentsOf.set(pCode, new Set());
+                    dependentsOf.get(pCode).add(code);
+                  }
+                }
+                prereqsOf.set(code, present);
+              })
+              .catch(() => prereqsOf.set(code, new Set()))
+          );
+        }
+        await Promise.all(prereqPromises);
+
+        for (const pCode of maybePrereq) {
+          const id = courseNodeId(pCode);
+          if (nodes.get(id))
+            nodes.update({
+              id,
+              color: {
+                background: COLOR.prereq.background,
+                border: COLOR.prereq.border,
+                highlight: {
+                  background: COLOR.prereq.hbg,
+                  border: COLOR.prereq.hbr,
+                },
+              },
+            });
+        }
+        for (const code of courseInGraph)
+          if (!prereqsOf.has(code)) prereqsOf.set(code, new Set());
+
+        preCompleted.forEach((code) => {
+          if (courseInGraph.has(code)) completed.add(code);
+        });
+        recomputeUnlocksAndGroups();
+
+        network.off("click");
+        network.on("click", async (params) => {
+          if (!params.nodes || params.nodes.length === 0) return;
+          const id = params.nodes[0];
+          if (!id.startsWith("course:")) return;
+          const code = id.slice("course:".length);
+          if (!courseInGraph.has(code)) return;
+
+          if (!completed.has(code) && !unlocked.has(code)) {
+            setStatus(
+              `"${code}" is locked — complete its prerequisites first.`
+            );
+            return;
+          }
+
+          try {
+            if (completed.has(code)) {
+              await removeCompletedFromBackend(
+                BASE_URL,
+                session.studentId,
+                code
+              );
+              completed.delete(code);
+            } else {
+              await addCompletedToBackend(BASE_URL, session.studentId, [code]);
+              completed.add(code);
+            }
+            recomputeUnlocksAndGroups();
+            const nextLocked = [...courseInGraph].filter(
+              (c) => !unlocked.has(c) && !completed.has(c)
+            ).length;
+            setStatus(
+              `Toggled "${code}" ${
+                completed.has(code) ? "complete" : "reset"
+              }. ${unlocked.size} unlocked, ${
+                completed.size
+              } complete, ${nextLocked} locked.`
+            );
+          } catch (e) {
+            console.error(e);
+            setStatus(`Failed to update server for "${code}".`);
+          }
+        });
+
+        setStatus(
+          `Loaded (student ${studentId}). Click a course to toggle completion; updates are saved per student.`
+        );
+      }
+
+      byId("reload").addEventListener("click", () => {
+        buildGraph(BASE_URL, session.studentId);
+      });
+
+      buildGraph(BASE_URL, session.studentId);
+    </script>
+  </body>
+</html>
