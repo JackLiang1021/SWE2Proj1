@@ -252,7 +252,7 @@
     </div>
 
     <script type="module">
-      import { BASE_URL } from "../js/config.js";
+      import { BASE_URL } from "/config.js";
 
       console.log(BASE_URL);
       const byId = (id) => document.getElementById(id);
@@ -320,7 +320,7 @@
 
           ok.style.display = "block";
 
-          window.location.href = "/html/main.html";
+          window.location.href = "/main.html";
         } catch (ex) {
           err.textContent = ex.message || "Login failed.";
           err.style.display = "block";
