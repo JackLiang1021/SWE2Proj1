@@ -268,7 +268,6 @@
         throw new Error("No session");
       }
 
-      byId("baseUrl").value = BASE_URL;
       const api = new DegreeApi(BASE_URL);
 
       (function lockInputs() {
