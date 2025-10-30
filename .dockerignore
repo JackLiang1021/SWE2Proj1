@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+.vscode
+frontend
+node_modules
+target
+**/.DS_Store
+**/Thumbs.db
