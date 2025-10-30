@@ -110,7 +110,7 @@
       <div id="status">Ready.</div>
       <div style="display: flex; flex-direction: row;">
         <div id="tab_container">
-          <a href="/html/main.html">Planner</a>
+          <a href="/main.html">Planner</a>
         </div>
         <button
           id="logoutBtn"
@@ -131,13 +131,13 @@
     </div>
     <div id="net"></div>
     <script type="module">
-      import { BASE_URL } from "../js/config.js";
+      import { BASE_URL } from "config.js";
 
       const logoutBtn = document.getElementById("logoutBtn");
       if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
           localStorage.removeItem("student");
-          window.location.href = "/html/login.html";
+          window.location.href = "login.html";
         });
       }
       function getSession() {
@@ -187,7 +187,7 @@
 
       const session = getSession();
       if (!session) {
-        location.href = "/html/login.html";
+        location.href = "login.html";
         throw new Error("No session");
       }
 
